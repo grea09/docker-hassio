@@ -1,0 +1,71 @@
+version: "2"
+services:
+  web:
+    container_name: web
+    image: traefik:latest
+    restart: always
+    command: "--api --docker"
+    ports:
+      - "80:80"
+      - "443:443"
+    networks:
+      - web
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - ./config/web/proxy.conf:/traefik.toml
+      - ./config/web/certs.json:/acme.json
+    labels:
+      - "traefik.frontend.rule=Host:dashboard.test" # TO CHANGE
+      - "traefik.enable=true"
+      - "traefik.port=8080"
+      - "traefik.docker.network=web"
+
+  iot:
+    container_name: iot
+    restart: always
+    image: homeassistant/qemux86-64-homeassistant:latest
+    networks:
+     - web
+     - db
+    depends_on:
+     - db
+    volumes:
+     - ./config/iot:/config
+     - /etc/localtime:/etc/localtime:ro
+    labels:
+      - "traefik.frontend.rule=Host:home.test" #TO CHANGE
+      - "traefik.enable=true"
+      - "traefik.port=8123"
+      - "traefik.docker.network=web"
+
+  iot_supervisor:
+    container_name: supervisor
+    restart: always
+    image: homeassistant/amd64-hassio-supervisor
+    security_opt:
+      - seccomp:unconfined
+    volumes:
+     - /var/run/docker.sock:/var/run/docker.sock
+     - /var/run/dbus:/var/run/dbus
+     - ./data/iot:/data
+    environment:
+      SUPERVISOR_SHARE: ./data/iot
+      SUPERVISOR_NAME: hassio_supervisor
+      HOMEASSISTANT_REPOSITORY: homeassistant/amd64-hassio-supervisor
+
+  db:
+    container_name: db
+    image: postgres
+    restart: always
+    networks:
+      - db
+    volumes:
+      - ./data/db:/var/lib/postgresql/data
+      - ./config/db/postgresql.conf:/etc/postgresql/postgresql.conf
+      - ./config/db/init:/docker-entrypoint-initdb.d
+    environment:
+      POSTGRES_PASSWORD: *******change_me_plz**********
+
+networks:
+  web:
+  db:
