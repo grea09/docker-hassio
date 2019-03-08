@@ -44,6 +44,7 @@ services:
     image: homeassistant/amd64-hassio-supervisor
     security_opt:
       - seccomp:unconfined
+      - apparmor:hassio-supervisor
     volumes:
      - /var/run/docker.sock:/var/run/docker.sock
      - /var/run/dbus:/var/run/dbus
